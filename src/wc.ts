@@ -128,7 +128,11 @@ export class WcBridge {
 
   async init(projectId: string): Promise<void> {
     // 切换 projectId 需要重建 client（projectId 是 init 期参数）
-    if (this.client && this.currentProjectId === projectId) return
+    if (this.client && this.currentProjectId === projectId) {
+      console.log('[wc] init skip: same projectId already initialized')
+      return
+    }
+    console.log('[wc] init start, projectId =', projectId)
     this.currentProjectId = projectId
     this.client = await SignClient.init({
       projectId,
@@ -141,6 +145,8 @@ export class WcBridge {
       },
       customStoragePrefix: STORAGE_PREFIX,
     })
+    console.log('[wc] init done. relay connected?',
+      ((this.client.core?.relayer?.provider as unknown as { connected?: boolean })?.connected) ?? 'unknown')
     this.bindEvents()
   }
 
@@ -158,6 +164,8 @@ export class WcBridge {
   /** dapp 发起连接，返回 { uri, approval }；uri 给钱包扫描 */
   async connect(): Promise<{ uri: string | undefined; approval: () => Promise<unknown> }> {
     if (!this.client) throw new Error('SignClient not initialized')
+    console.log('[wc] connect: client ready, relay connected =',
+      ((this.client.core?.relayer?.provider as unknown as { connected?: boolean })?.connected) ?? 'unknown')
     const requiredNamespaces = {
       eip155: {
         methods: ['personal_sign', 'eth_sendTransaction', 'eth_signTypedData_v4'],
@@ -165,7 +173,13 @@ export class WcBridge {
         events: ['accountsChanged', 'chainChanged'],
       },
     }
-    const { uri, approval } = await this.client.connect({ requiredNamespaces })
+    // 加超时：relay 没连上时 connect() 可能无限挂起，15s 后超时报清晰错误
+    const connectP = this.client.connect({ requiredNamespaces })
+    const timeoutP = new Promise<never>((_, rej) =>
+      setTimeout(() => rej(new Error('connect() 超时 15s（relay 未连上或网络问题）')), 15000),
+    )
+    const { uri, approval } = await Promise.race([connectP, timeoutP])
+    console.log('[wc] connect returned, uri =', uri ? `${uri.slice(0, 40)}...` : '(undefined)')
     this.lastUri = uri
     return { uri, approval: approval as () => Promise<unknown> }
   }

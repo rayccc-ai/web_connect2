@@ -7,7 +7,10 @@ import { VerifyContextPanel } from './components/VerifyContextPanel'
 import { EventLog } from './components/EventLog'
 
 export function App() {
-  const [activeCase, setActiveCase] = useState<TestCase>(TEST_CASES[0])
+  // 默认选中第一个已注入真实 projectId 的用例，避免落在占位 tab 上点了连不上
+  const [activeCase, setActiveCase] = useState<TestCase>(
+    TEST_CASES.find((c) => !c.projectId.startsWith('PUT_')) ?? TEST_CASES[0],
+  )
   const [records, setRecords] = useState<VerifyEventRecord[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [uri, setUri] = useState<string | undefined>()
@@ -46,12 +49,18 @@ export function App() {
   async function handleConnect() {
     setStatus('connecting'); setError('')
     try {
+      console.log('[connect] calling wcBridge.connect() ...')
       const { uri: u } = await wcBridge.connect()
+      console.log('[connect] resolved, uri =', u ? `${u.slice(0, 40)}...` : undefined)
       setUri(u)
-      if (!u) setError('未拿到 uri（可能已存在 pairing）')
+      if (!u) setError('未拿到 uri：signClient.connect() 返回空 uri（可能 relay 未连上或已存在活跃 pairing）')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      setStatus('error'); setError(msg)
+      console.error('[connect] rejected:', e)
+      setError(msg)
+    } finally {
+      // 关键：无论成功失败都重置 status，否则按钮永远卡在「连接中」
+      setStatus('idle')
     }
   }
 

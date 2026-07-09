@@ -1,10 +1,7 @@
-# 本地敏感配置（不提交）
-.env.local
-.env.*.local
-
-# 注：本仓库的 .env 需要提交，Vercel 构建期读取 VITE_PID_INVALID；
-# projectId 明文公开在仓库（已确认接受）。
-!.env
+# 凭据 / 本地配置（含 projectId，绝不提交）
+.env
+.env.*
+!.env.example
 
 # 依赖与构建产物
 node_modules/

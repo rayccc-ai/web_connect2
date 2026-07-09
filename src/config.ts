@@ -47,7 +47,8 @@ export const TEST_CASES: TestCase[] = [
   {
     key: 'invalid',
     expectedTag: 'invalid',
-    projectId: env.VITE_PID_INVALID ?? 'PUT_INVALID_PROJECT_ID',
+    // 硬编码 projectId：完全不走 env，彻底避免被 Vercel 后台空值/错值覆盖。
+    projectId: '7cc85483ac71df376d1763405001708f',
     expectedOrigin: CURRENT_ORIGIN,
     allowlistHint: `在 Dashboard 配一个与 ${CURRENT_ORIGIN} 故意不一致的域名`,
     trigger: '请求真实 origin 与该 projectId 登记的 allowlist 域名不匹配，但未被标记',
