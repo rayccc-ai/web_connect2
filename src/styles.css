@@ -38,6 +38,8 @@ body {
   padding: 9px 16px; font-size: 14px; cursor: pointer;
 }
 .actions button:disabled { background: #444; cursor: not-allowed; }
+.actions .reset-btn { background: #374151; }
+.actions .reset-btn:hover { background: #4b5563; }
 .error { color: #f87171; font-size: 13px; margin-bottom: 10px; word-break: break-all; }
 .qr { text-align: center; margin-bottom: 14px; }
 .qr img { border-radius: 8px; background: #fff; padding: 6px; }

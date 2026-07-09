@@ -183,6 +183,52 @@ export class WcBridge {
     this.lastUri = uri
     return { uri, approval: approval as () => Promise<unknown> }
   }
+
+  /**
+   * 一键重置：断开所有活跃 pairing / session，并清掉 sign-client 持久化在
+   * localStorage 的残留数据。用于解决「之前连接没断，导致下次 connect 卡住」的问题。
+   * 调用后需重新点「发起连接」生成新二维码。
+   */
+  async reset(): Promise<void> {
+    const c = this.client
+    console.log('[wc] reset start')
+    if (c) {
+      // 断开所有活跃 session
+      try {
+        const sessions = (c.session?.values ?? []) as Array<{ topic: string }>
+        for (const s of sessions) {
+          await c.disconnect({ topic: s.topic, reason: { code: 0, message: 'manual reset' } })
+          console.log('[wc] reset: disconnected session', s.topic)
+        }
+      } catch (e) { console.warn('[wc] reset: session disconnect failed', e) }
+      // 断开所有活跃 pairing（这些是 connect() 留下、还没被扫的，正是卡住的主因）
+      try {
+        const pairings = (c.pairing?.values ?? []) as Array<{ topic: string }>
+        for (const p of pairings) {
+          await c.core.pairing.disconnect({ topic: p.topic })
+          console.log('[wc] reset: disconnected pairing', p.topic)
+        }
+      } catch (e) { console.warn('[wc] reset: pairing disconnect failed', e) }
+    }
+    // 清掉 localStorage 里 sign-client 持久化的所有 key（前缀 STORAGE_PREFIX）
+    try {
+      const prefix = STORAGE_PREFIX
+      let removed = 0
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith(prefix)) {
+          localStorage.removeItem(key)
+          removed++
+        }
+      }
+      console.log(`[wc] reset: removed ${removed} localStorage entries (prefix=${prefix})`)
+    } catch (e) { console.warn('[wc] reset: localStorage clear failed', e) }
+    // 重置后下次 init 会被允许（currentProjectId 不变时 init 会跳过，这里强制重建）
+    this.client = undefined
+    this.currentProjectId = undefined
+    this.lastUri = undefined
+    console.log('[wc] reset done')
+  }
 }
 
 export const wcBridge = new WcBridge()

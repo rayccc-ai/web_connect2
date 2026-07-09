@@ -64,6 +64,20 @@ export function App() {
     }
   }
 
+  async function handleReset() {
+    setError('')
+    try {
+      await wcBridge.reset()
+      // 清掉当前二维码/错误，重新 init 当前用例（reset 已把 client 置空）
+      setUri(undefined); setQr(''); setStatus('idle')
+      await wcBridge.init(activeCase.projectId)
+      console.log('[reset] re-initialized', activeCase.label)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+    }
+  }
+
   const latestRecord = useMemo(
     () => records.find((r) => r.id === activeId) ?? null,
     [records, activeId],
@@ -108,6 +122,9 @@ export function App() {
           <div className="actions">
             <button onClick={handleConnect} disabled={status === 'connecting' || pidPlaceholder}>
               {status === 'connecting' ? '连接中…' : '发起连接'}
+            </button>
+            <button onClick={handleReset} disabled={status === 'connecting'} className="reset-btn">
+              重置连接（清残留 pairing）
             </button>
             {pidPlaceholder ? <span className="warn">先填真实 projectId 才能连接</span> : null}
           </div>
